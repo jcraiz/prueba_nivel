@@ -85,6 +85,20 @@ const JCAHResults = (() => {
     const speakingEnabled = exam.speaking && exam.speaking.enabled !== false;
     const speakingLvlKey = speakingEnabled ? (attempt.speakingResults?.overallLevel || 'A0') : 'N/A';
 
+    const isPlacement = Boolean(
+      exam.examType === 'placement' ||
+      exam.type === 'placement' ||
+      (attempt && (attempt.examType === 'placement' || attempt.isPlacement))
+    );
+    const vocabGrammarSubtitle = isPlacement
+      ? 'Linear stratified assessment (12 Vocabulary + 12 Grammar)'
+      : (exam.vocabAdaptive && exam.vocabAdaptive.enabled !== false
+          ? 'Adaptive assessment evaluated separately and averaged equally'
+          : 'Evaluated separately and averaged equally');
+    const speakingSubtitle = isPlacement
+      ? 'Diagnostic Speech Assessment:'
+      : 'Speech Recognition Assessment:';
+
     const vScore = scores.vocab?.score ?? scores.vocab?.pct ?? (attempt.vocabAdaptiveResult?.score ?? 0);
     const vCefr = scores.vocab?.level || scores.vocabCefr?.label || attempt.vocabAdaptiveResult?.level || 'A1';
     const gScore = scores.grammar?.score ?? scores.grammar?.pct ?? (attempt.grammarAdaptiveResult?.score ?? 0);
@@ -200,7 +214,7 @@ const JCAHResults = (() => {
             <div class="flex items-center justify-between mb-3">
               <div>
                 <h3 style="font-size:16px;margin:0 0 2px 0;">Vocabulary &amp; Grammar Results</h3>
-                <span class="text-xs text-muted">Adaptive assessment evaluated separately and averaged equally</span>
+                <span class="text-xs text-muted">${vocabGrammarSubtitle}</span>
               </div>
               ${!isNoneMode ? (isPendingGrading ? '<span class="chip chip-b1">Pending</span>' : JCAHScoring.cefrChipHtml(scores.writingScore)) : ''}
             </div>
@@ -285,7 +299,7 @@ const JCAHResults = (() => {
             </div>
             ` : ''}
 
-            <div class="text-xs text-muted mb-2">Adaptive Phonetic Assessment:</div>
+            <div class="text-xs text-muted mb-2">${speakingSubtitle}</div>
             <div class="grid-2 gap-2 text-xs font-mono">
               ${(() => {
                 const levels = attempt.speakingResults?.partLevels || [];
@@ -984,7 +998,6 @@ const JCAHResults = (() => {
         <div class="q-text mb-4" style="font-size:16px;font-weight:600;line-height:1.5">
           ${escapeHtml(q.text)}
         </div>
-
         <!-- Options / Detailed Answers Breakdown -->
         <div class="review-options-container mb-3">
           ${renderQuestionAnswerBreakdown(q, studentAns, correctVal, pairsVal)}
@@ -1732,6 +1745,26 @@ const JCAHResults = (() => {
     }
     if (jsonResp.cefrLevel) {
       attempt.scores.overallCefr = jsonResp.cefrLevel;
+    }
+
+    const isPlac = Boolean((_exam && (_exam.examType === 'placement' || _exam.type === 'placement')) || (attempt && (attempt.examType === 'placement' || attempt.isPlacement)));
+    if (isPlac) {
+      if (!attempt.scores.vocab?.total || attempt.scores.vocab.total < 12) {
+        attempt.scores.vocab = attempt.scores.vocab || {};
+        attempt.scores.vocab.total = (attempt.vocabQuestions || []).length || 12;
+      }
+      if (!attempt.scores.grammar?.total || attempt.scores.grammar.total < 12) {
+        attempt.scores.grammar = attempt.scores.grammar || {};
+        attempt.scores.grammar.total = (attempt.grammarQuestions || []).length || 12;
+      }
+      if (!attempt.scores.reading?.total || attempt.scores.reading.total < 10) {
+        attempt.scores.reading = attempt.scores.reading || {};
+        attempt.scores.reading.total = (attempt.readingQuestions || []).length || 10;
+      }
+      if (!attempt.scores.listening?.total || attempt.scores.listening.total < 10) {
+        attempt.scores.listening = attempt.scores.listening || {};
+        attempt.scores.listening.total = (attempt.listeningQuestions || []).length || 10;
+      }
     }
 
     if (typeof JCAHAttemptStore !== 'undefined' && typeof JCAHAttemptStore.saveAttempt === 'function') {
